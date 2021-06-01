@@ -1,62 +1,60 @@
 <?php
 
+/**
+ * Author: Emmanuel Paul Mnzava
+ * Twitter: @epmnzava
+ * Email: epmnzava@gmail.com
+ * Github:https://github.com/dbrax/tigopesa-tanzania
+ * This class contains all api calls ..
+ */
+
 namespace Epmnzava\Tigosecure;
 
+use Epmnzava\Tigosecure\Configs\V1\TigoConfigs;
+use Exception;
+use GuzzleHttp\Client;
+use Log;
+use Throwable;
 
-use Illuminate\Support\Facades\Log;
-
-/**
- * TigoUtil
- * @version 1.*
- * @author Emmanuel Paul Mnzava
- * @author Twitter: @epmnzava
- * @author Email: epmnzava@gmail.com
- */
-class TigoUtil
+class TigoUtil extends TigoConfigs
 {
-    const AUTH_URL = "/v1/oauth/generate/accesstoken?grant_type=client_credentials";
-
-    /**
-     * @param string $base_url
-     * @return bool|string
-     */
-    public function get_access_token(string $base_url)
-    {
-
-        $access_token_url = $base_url . self::AUTH_URL;
-
-        $data = [
-            'client_id' => config('tigosecure.client_id'),
-            'client_secret' => config('tigosecure.secret')
-        ];
-
-        $ch = curl_init($access_token_url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/x-www-form-urlencoded'));
-        curl_setopt($ch, CURLOPT_URL, $access_token_url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-
-        $response = curl_exec($ch);
-
-        curl_close($ch);
-
-        return $response;
-    }
 
 
-    /**
-     * @param $amount
-     * @param $reference_id
-     * @param $customer_firstname
-     * @param $customer_lastname
-     * @param $customer_email
-     * @return string
-     */
-    public function createPaymentAuthJson($amount, string $reference_id, string $customer_firstname, string $customer_lastname, string $customer_email): string
-    {
+  private $client_id;
+  private $client_secret;
+  private $base_url;
+
+  public function __construct($client_id, $client_secret, $base_url)
+  {
+
+    $this->client_id = $client_id;
+    $this->client_secret = $client_secret;
+    $this->base_url = $base_url;
+  }
 
 
-        $paymentJson = '{
+
+  /**
+   * @param $amount
+   * @param $refersence_id
+   * @param $customer_firstname
+   * @param $custormer_lastname
+   * @param $customer_email
+   * @return string
+   *
+   * function that creates payment authentication json
+   */
+
+  public function createPaymentAuthJson(
+    $amount,
+    $refecence_id,
+    $customer_firstname,
+    $custormer_lastname,
+    $customer_email
+  ): string {
+
+
+    $paymentJson = '{
   "MasterMerchant": {
     "account": "' . config('tigosecure.account_number') . '",
     "pin": "' . config('tigosecure.pin') . '",
@@ -72,7 +70,7 @@ class TigoUtil
     "countryCode": "255",
     "country": "TZA",
     "firstName": "' . $customer_firstname . '",
-    "lastName": "' . $customer_lastname . '",
+    "lastName": "' . $custormer_lastname . '",
     "emailId": "' . $customer_email . '"
   },
   "redirectUri":" ' . config('tigosecure.redirect_url') . '",
@@ -80,61 +78,91 @@ class TigoUtil
   "language": "' . config('tigosecure.lang') . '",
   "terminalId": "",
   "originPayment": {
-    "amount": "300.00",
+    "amount": "' . $amount . '",
     "currencyCode": "' . config('tigosecure.currency_code') . '",
     "tax": "0.00",
     "fee": "0.00"
   },
   "exchangeRate": "1",
   "LocalPayment": {
-    "amount": "300.00",
+    "amount": "' . $amount . '",
     "currencyCode": "' . config('tigosecure.currency_code') . '"
   },
-  "transactionRefId": "' . $reference_id . '"
+  "transactionRefId": "' . $refecence_id . '"
 }';
 
-        return $paymentJson;
-
-    }
 
 
-    /**
-     * @param string $base_url
-     * @param string $issuedToken
-     * @param string $amount
-     * @param string $reference_id
-     * @param string $customer_firstname
-     * @param string $customer_lastname
-     * @param string $customer_email
-     * @return bool|string
-     */
-    public function makePaymentRequest(string $base_url, string $issuedToken, string $amount, string $reference_id, string $customer_firstname, string $customer_lastname, string $customer_email)
-    {
 
-        $access_token_url = $base_url . "/v1/tigo/payment-auth/authorize";
+    return $paymentJson;
+  }
 
-        $paymentAuthUrl = $access_token_url;
-        $ch = curl_init($paymentAuthUrl);
-        curl_setopt_array($ch, array(
-            CURLOPT_URL => $paymentAuthUrl,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => $this->createPaymentAuthJson($amount, $reference_id, $customer_firstname, $customer_lastname, $customer_email),
-            CURLOPT_HTTPHEADER => array(
-                "accesstoken:" . $issuedToken,
-                "cache-control: no-cache",
-                "content-type: application/json",
-            ),
-        ));
 
-        $response = curl_exec($ch);
-        curl_close($ch);
+  /**
+   * Using Curl Request
+   * @param string $base_url
+   * @param $issuedToken
+   * @param $amount
+   * @param $refecence_id
+   * @param $customer_firstname
+   * @param $custormer_lastname
+   * @param $customer_email
+   * @return bool|string
+   *
+   */
 
-        return $response;
-    }
+  public function makePaymentRequest($issuedToken, $amount, $refecence_id, $customer_firstname, $custormer_lastname, $customer_email)
+  {
+
+    $paymentAuthUrl = $this->base_url . self::PAYMENT_AUTHORIZATION_ENDPOINT;
+    $ch = curl_init($paymentAuthUrl);
+    curl_setopt_array($ch, array(
+      CURLOPT_URL => $paymentAuthUrl,
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_ENCODING => "",
+      CURLOPT_MAXREDIRS => 10,
+      CURLOPT_TIMEOUT => 30,
+      CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+      CURLOPT_CUSTOMREQUEST => "POST",
+      CURLOPT_POSTFIELDS => $this->createPaymentAuthJson($amount, $refecence_id, $customer_firstname, $custormer_lastname, $customer_email),
+      CURLOPT_HTTPHEADER => array(
+        "accesstoken:" . $issuedToken,
+        "cache-control: no-cache",
+        "content-type: application/json",
+      ),
+    ));
+
+    $response = curl_exec($ch);
+
+    curl_close($ch);
+
+    return $response;
+  }
+
+  public function get_access_token()
+  {
+    $access_token_url = $this->base_url . self::ACCESS_TOKEN_ENDPOINT;
+
+    $data = [
+      'client_id' => config('tigosecure.client_id'),
+      'client_secret' => config('tigosecure.secret')
+    ];
+//Will have to add try catch
+    //try{
+  //}
+   // catch(Throwable $e){
+ //     report($e);
+ //     return json_encode(["message"=>"Error Found ".$e,"status"=>500]);
+ //   }
+
+    $client = new  Client;
+    $response = $client->request('POST', $access_token_url, [
+      'form_params' => $data
+    ]);
+    return $response->getBody();
+
+        
+  }
+
 
 }
